@@ -106,7 +106,7 @@ ggplot(unemp, aes(x = date, y = unemployment_rate, color = region)) +
   ) +
   theme_minimal()
 
-# 5.2 Individual line plot - separate panel per region
+# 5.2 Individual line plot
 ggplot(unemp, aes(x = date, y = unemployment_rate)) +
   geom_line() +
   facet_wrap(~ region) +
@@ -126,6 +126,7 @@ ggplot(unemp_summary, aes(x = fct_reorder(region, mean_rate), y = mean_rate)) +
     y = "Mean unemployment rate (%)"
   ) +
   theme_minimal()
+
 # 5.4 Oregon and California Gap Relative to US
 unemp |>
   select(date, region, unemployment_rate) |>
@@ -146,4 +147,4 @@ unemp |>
     color = "State"
   ) +
   theme_minimal()
-# I chose to compare California and Oregon's gap relative to the US rate. I thought this would be interesting since most students at U of O are from either of these states, and it would provide an interesting view of how unemployment compares since they are so close in proximity.
+# I chose to compare California and Oregon's gap relative to the US rate. I thought this would be interesting since most students at U of O are from either of these states, and it would provide an interesting view of how unemployment compares since they are so close in proximity. The chart displays that California is more often above the national unemployment rate than Oregon, though the peaks and dips for each state loosely mirror each other.

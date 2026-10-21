@@ -1,7 +1,208 @@
 ---
 title: "Problem Set 2"
-format: html
-editor: visual
+author: "Georgia Gould"
+date: October 16, 2026
+format: 
+  html:
+    toc: true
+    embed-resources: true
 ---
 
-## 
+```         
+**GitHub repo:** <https://github.com/georgiagouldd/ee422_ps2_gould>
+```
+
+## Data
+
+The data used in this analysis is monthly, seasonally adjusted unemployment rates for OR, CA, TX, NY, and the greater US sourced from the FRED database.The sample runs from January 1976 through August 2026 for the state series, and September 2026 for the US series. The October 2025 value is omitted due to the government shutdown during that time. I downloaded this data using the tidyquant package. Each row of the data is one month in each of the outlined regions. The columns are symbol (FRED series code), date, and price (percent unemployment rate). I renamed price to unemployment_rate and added a region label. 
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+library(tidyquant)
+library(tidyverse)
+library(knitr)
+
+unemp_raw =  read_rds("data/unemp_raw.rds")
+
+# 4.1 Clean up Data
+unemp <- unemp_raw |>
+  rename(unemployment_rate = price) |>
+  mutate(
+    region = case_when(
+      symbol == "UNRATE" ~ "United States",
+      symbol == "ORUR"   ~ "Oregon",
+      symbol == "CAUR"   ~ "California",
+      symbol == "TXUR"   ~ "Texas",
+      symbol == "NYUR"   ~ "New York"
+    )
+  )
+
+#4.2 Fill missing Oct 2025 value
+unemp <- unemp |>
+  arrange(region, date) |>
+  group_by(region) |>
+  mutate(
+    unemployment_rate = replace(
+      unemployment_rate,
+      date == as.Date("2025-10-01"),
+      unemployment_rate[date == as.Date("2025-09-01")]
+    )
+  ) |>
+  ungroup ()
+
+# 4.2 Wrangle data
+unemp <- unemp |>
+  arrange (region, date) |>
+  group_by(region) |>
+  mutate(unemployment_rate_change =
+           unemployment_rate - lag(unemployment_rate)) |>
+  ungroup()
+
+
+unemp_recent <- unemp |>
+  filter(date >= as.Date("2015-01-01"))
+
+unemp_summary <- unemp |>
+  group_by(region) |>
+  summarize(
+    mean_rate = mean(unemployment_rate, na.rm = TRUE),
+    min_rate  = min(unemployment_rate, na.rm = TRUE),
+    max_rate  = max(unemployment_rate, na.rm = TRUE)
+  )
+
+unemp_recent_summary <- unemp_recent |>
+  group_by(region) |>
+  summarize(
+    mean_rate = mean(unemployment_rate, na.rm = TRUE),
+    min_rate  = min(unemployment_rate, na.rm = TRUE),
+    max_rate  = max(unemployment_rate, na.rm = TRUE)
+  )
+
+# 4.3: largest month over month increase and decrease
+unemp_top_increases <- unemp |>
+  slice_max(unemployment_rate_change, n = 5)
+
+unemp_top_decreases <- unemp |>
+  slice_min(unemployment_rate_change, n = 5)
+
+# 4.4: Extremes excluding 2020
+unemp_no_covid <- unemp |>
+  filter(year(date) != 2020)
+
+unemp_top_increases_no_covid <- unemp_no_covid |>
+  slice_max(unemployment_rate_change, n = 5)
+
+unemp_top_decreases_no_covid <- unemp_no_covid |>
+  slice_min(unemployment_rate_change, n = 5)
+```
+```{r}
+kable(head(unemp_raw))
+```
+## Wrangling
+The first table reports the mean, maximum, and minimum monthly unemployment rate in percentages for each region from January 1976 to present (the full sample).
+```{r}
+kable(
+  unemp_summary,
+  digits = 2,
+  col.names = c("Region", "Mean rate %", "Min rate %", "Max rate %"),
+  caption = "Summary of Unemployment Rates by Region (full sample)"
+)
+```
+The second table also reports mean, maximum, and minimum monthly unemployment rates. However, this one uses data from only January 2015 to present.
+```{r}
+kable(
+  unemp_recent_summary,
+  digits = 2,
+  col.names = c("Region", "Mean rate (%)", "Min rate (%)", "Max rate (%)"),
+  caption = "Summary of Unemployment Rates by Region (January 2015 to present)"
+)
+```
+The third table lists, across all regions, the 5 largest month over month increases in the unemployment rate (excluding 2020). This change is measured in percentage points.
+```{r}
+unemp_top_increases_no_covid |>
+  select(region, date, unemployment_rate, unemployment_rate_change) |>
+  kable(
+    digits = 2,
+    col.names = c("Region", "Date", "Unemployment rate (%)", "Monthly change (pp)"),
+    caption = "Largest month over month increases (excluding 2020)"
+  )
+```
+The fourth table lists the 5 largest month over month decreases, again, excluding 2020. Utilizing percentage points as well.
+```{r}
+unemp_top_decreases_no_covid |>
+  select(region, date, unemployment_rate, unemployment_rate_change) |>
+  kable(
+    digits = 2,
+    col.names = c("Region", "Date", "Unemployment rate (%)", "Monthly change (pp)"),
+    caption = "Largest month over month decreases (excluding 2020)"
+  )
+```
+## Visualization
+The first figure plots the monthly unemployment rate for the US and the four states on one set of axes. Each region is indicated by a separate line.
+```{r}
+#| fig-cap: "Monthly unemployment rate, U.S. and selected states (1976 to present)"
+ggplot(unemp, aes(x = date, y = unemployment_rate, color = region)) +
+  geom_line() +
+  labs(
+    title = "Unemployment Rate: U.S. and Selected States",
+    x = "Date",
+    y = "Unemployment rate (%)",
+    color = "Region"
+  ) +
+  theme_minimal()
+```
+The second figure shows the same data as the first, but separated into one panel for each region. This makes patterns in each region easier to identify.
+```{r}
+#| fig-cap: "Monthly unemployment rate by region, one panel per region"
+ggplot(unemp, aes(x = date, y = unemployment_rate)) +
+  geom_line() +
+  facet_wrap(~ region) +
+  labs(
+    title = "Unemployment Rate by Region",
+    x = "Date",
+    y = "Unemployment rate (%)"
+  ) +
+  theme_minimal()
+
+```
+The third figure is a bar chart displaying the mean unemployment rate for each region with the full dataset (1976 to present). The bars are ordered from lowest to highest.
+```{r}
+#| fig-cap: "Mean unemployment rate by region (1976 to present)"
+ggplot(unemp_summary, aes(x = fct_reorder(region, mean_rate), y = mean_rate)) +
+  geom_col() +
+  labs(
+    title = "Average Unemployment Rate by Region (1976 to Present)",
+    x = "Region",
+    y = "Mean unemployment rate (%)"
+  ) +
+  theme_minimal()
+```
+The fourth figure is a plot comparing the gap between the unemployment rates in California nad Oregon compared to the US. The zero line indicates the US national rate, so values above zero mean the state's rate is higher and visversa for below zero. 
+```{r}
+#| fig-cap: "California and Oregon unemployment rate minus the U.S. rate"
+#| warning: false
+unemp |>
+  select(date, region, unemployment_rate) |>
+  pivot_wider(names_from = region, values_from = unemployment_rate) |>
+  mutate(
+    California = California - `United States`,
+    Oregon = Oregon - `United States`
+  ) |>
+  select(date, California, Oregon) |>
+  pivot_longer(-date, names_to = "region", values_to = "gap") |>
+  ggplot(aes(x = date, y = gap, color = region)) +
+  geom_line() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(
+    title = "Unemployment Rate Gap vs. U.S.: California and Oregon",
+    x = "Date",
+    y = "Percentage points above U.S. rate",
+    color = "State"
+  ) +
+  theme_minimal()
+```
+I chose to compare California and Oregon's gap relative to the US rate. I thought this would be interesting since most students at U of O are from either of these states, and it would provide an interesting view of how unemployment compares since they are so close in proximity. The chart displays that California is more often above the national unemployment rate than Oregon, though the peaks and dips for each state loosely mirror each other.
+
+## Reflection
+In previous classes I have coded mostly in .qmd files, and have rarely done anything in the terminal. It makes it easier, in my opinion, to use the terminal to do checks since before I had a hard time sourcing my errors. I think it will take me a second to get used to the Github aspect of the workflow, but other than that I feel pretty good about the process. I definitely feel more comfortable with creating truly readable reports within R now. Going forward, I feel like the process will be more streamlined since I have done it once already. I need to work on my understanding of embeding the github link. 
