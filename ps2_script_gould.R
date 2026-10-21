@@ -12,7 +12,9 @@ library(tidyverse)
 #
 # write_rds(unemp_raw, "data/unemp_raw.rds")
 
-unemp_raw =  read_rds("data/unemp_raw.rds")
+
+# 4.1 Clean up Data
+unemp_raw <-  read_rds("data/unemp_raw.rds")
 unemp <- unemp_raw |>
   rename(unemployment_rate = price) |>
   mutate(
@@ -26,10 +28,27 @@ unemp <- unemp_raw |>
 head(unemp)
 unemp |> filter(date == as.Date("2025-10-01"))
 
+#4.2 Fill missing Oct 2025 value 
 unemp <- unemp |>
   arrange(region, date) |>
   group_by(region) |>
-  mutate(unemployment_rate_change = unemployment_rate - lag(unemployment_rate)) |>
+  mutate(
+    unemployment_rate = replace(
+      unemployment_rate,
+      date == as.Date("2025-10-01"),
+      unemployment_rate[date == as.Date("2025-09-01")]
+    )
+  ) |>
+  ungroup()
+
+unemp |> filter(date == as.Date("2025-10-01"))
+
+#4.2 Wrangle Data
+unemp <- unemp |>
+  arrange(region, date) |>
+  group_by(region) |>
+  mutate(
+    unemployment_rate_change = unemployment_rate - lag(unemployment_rate)) |>
   ungroup()
 
 unemp_recent <- unemp |>
@@ -127,4 +146,4 @@ unemp |>
     color = "State"
   ) +
   theme_minimal()
-## I chose to compare California and Oregons gap relative to the US rate. I thought this would be interesting since most students at U of O are from either of these states, and it would provide an interesting view of how unemployement compares since they are so close in proximity.
+# I chose to compare California and Oregon's gap relative to the US rate. I thought this would be interesting since most students at U of O are from either of these states, and it would provide an interesting view of how unemployment compares since they are so close in proximity.
