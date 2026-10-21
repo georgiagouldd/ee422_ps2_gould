@@ -1,4 +1,3 @@
-{r
 library(tidyquant)
 library(tidyverse)
 
@@ -77,3 +76,55 @@ unemp_top_decreases
 unemp_top_increases_no_covid
 unemp_top_decreases_no_covid
 
+# 5.1 Single line plot - one line per region
+ggplot(unemp, aes(x = date, y = unemployment_rate, color = region)) +
+  geom_line() +
+  labs(
+    title = "Unemployment Rate: U.S. and Selected States",
+    x = "Date",
+    y = "Unemployment rate (%)",
+    color = "Region"
+  ) +
+  theme_minimal()
+
+# 5.2 Individual line plot - separate panel per region
+ggplot(unemp, aes(x = date, y = unemployment_rate)) +
+  geom_line() +
+  facet_wrap(~ region) +
+  labs(
+    title = "Unemployment Rate by Region",
+    x = "Date",
+    y = "Unemployment rate (%)"
+  ) +
+  theme_minimal()
+
+# 5.3 Bar Chart
+ggplot(unemp_summary, aes(x = fct_reorder(region, mean_rate), y = mean_rate)) +
+  geom_col() +
+  labs(
+    title = "Average Unemployment Rate by Region, 1976 to Present",
+    x = "Region",
+    y = "Mean unemployment rate (%)"
+  ) +
+  theme_minimal()
+# 5.4 Oregon and California Gap Relative to US
+unemp |>
+  select(date, region, unemployment_rate) |>
+  pivot_wider(names_from = region, values_from = unemployment_rate) |>
+  mutate(
+    California = California - `United States`,
+    Oregon = Oregon - `United States`
+  ) |>
+  select(date, California, Oregon) |>
+  pivot_longer(-date, names_to = "region", values_to = "gap") |>
+  ggplot(aes(x = date, y = gap, color = region)) +
+  geom_line() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  labs(
+    title = "Unemployment Rate Gap vs. U.S.: California and Oregon",
+    x = "Date",
+    y = "Percentage points above U.S. rate",
+    color = "State"
+  ) +
+  theme_minimal()
+## I chose to compare California and Oregons gap relative to the US rate. I thought this would be interesting since most students at U of O are from either of these states, and it would provide an interesting view of how unemployement compares since they are so close in proximity.
